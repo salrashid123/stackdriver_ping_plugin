@@ -1,0 +1,14 @@
+imports:
+- path: vm_template.jinja
+
+resources:
+- name: my-vm
+  type: vm_template.jinja
+  properties:
+    instancePrefix: ping-instance
+    numInstances: 3
+    zone: us-central1-a
+    serviceAccount: default
+    serviceAccountScopes:
+    - https://www.googleapis.com/auth/logging.write
+    - https://www.googleapis.com/auth/monitoring.write

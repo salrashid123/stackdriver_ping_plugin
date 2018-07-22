@@ -1,0 +1,132 @@
+{% set NAME_PREFIX = env['deployment'] + '-' + env['name'] %}
+
+resources:
+{% for n in range(properties["numInstances"]) %}
+- type: compute.v1.instance
+  name: {{env['deployment'] }}-{{ properties["instancePrefix"] }}-{{n}}
+  properties:
+    serviceAccounts:
+      - email: {{ properties["serviceAccount"] }}
+        scopes:
+        {% for scope in properties['serviceAccountScopes'] %}
+        - {{ scope }}
+        {% endfor %}
+    zone: {{ properties["zone"] }}
+    machineType: https://www.googleapis.com/compute/v1/projects/{{ env["project"] }}/zones/{{ properties["zone"] }}/machineTypes/f1-micro
+    metadata:
+      items:
+      - key: startup-script
+        value: |
+          #!/bin/bash
+          apt-get update
+          apt-get install -y curl liboping0
+
+          export HOME=/root
+
+          curl -O "https://repo.stackdriver.com/stack-install.sh"
+          bash stack-install.sh --write-gcm
+          curl -o /opt/stackdriver/collectd/lib/collectd/ping.so https://storage.googleapis.com/mineral-minutia-820/ping.so
+
+          curl -sSO https://dl.google.com/cloudagents/install-logging-agent.sh
+          bash install-logging-agent.sh
+
+          echo '
+          LoadPlugin ping
+          <Plugin ping>
+           {% for i in range(properties["numInstances"]) %}
+            Host "{{env['deployment'] }}-{{ properties["instancePrefix"] }}-{{i}}"
+           {% endfor %}
+            Host "www.googleapis.com"
+            Host "www.cnn.com"
+           Interval 1
+          </Plugin>
+
+          LoadPlugin match_regex
+          LoadPlugin target_set
+          LoadPlugin target_replace
+
+          PreCacheChain "PreCache"
+          <Chain "PreCache">
+            <Rule "jump_to_custom_metrics_from_ping">
+              <Match regex>
+                Plugin "^ping$"
+              </Match>
+              <Target "jump">
+                Chain "PreCache_ping"
+              </Target>
+            </Rule>
+          </Chain>
+
+          <Chain "PreCache_ping">
+            <Rule "rewrite_ping_drop_rate">
+              <Match regex>
+                Plugin "^ping$"
+                Type "^ping_droprate$"
+              </Match>
+
+              <Target "set">
+                MetaData "stackdriver_metric_type" "custom.googleapis.com/ping/ping_droprate"
+                MetaData "label:to" "%{type_instance}"
+              </Target>
+            </Rule>
+
+            <Rule "rewrite_ping">
+              <Match regex>
+                Plugin "^ping$"
+                Type "^ping$"
+              </Match>
+
+              <Target "set">
+                MetaData "stackdriver_metric_type" "custom.googleapis.com/ping/ping"
+                MetaData "label:to" "%{type_instance}"
+              </Target>
+            </Rule>
+
+            <Rule "rewrite_ping_stddev">
+              <Match regex>
+                Plugin "^ping$"
+                Type "^ping_stddev$"
+              </Match>
+
+              <Target "set">
+                MetaData "stackdriver_metric_type" "custom.googleapis.com/ping/ping_stddev"
+                MetaData "label:to" "%{type_instance}"
+              </Target>
+            </Rule>  
+
+            <Rule "go_back">
+              Target "return"
+            </Rule>
+          </Chain>
+
+          ' > /opt/stackdriver/collectd/etc/collectd.d/ping.conf
+
+          echo '
+          <source>
+           type tail
+           format json
+           path /var/log/pinglog.log
+           pos_file /var/lib/google-fluentd/pos/pinglog.pos
+           read_from_head true
+           tag pinglog
+          </source>
+          ' > /etc/google-fluentd/config.d/pinglog.conf
+
+          service stackdriver-agent restart
+          service google-fluentd restart
+    disks:
+    - deviceName: boot
+      type: PERSISTENT
+      boot: true
+      autoDelete: true
+      initializeParams:
+        diskName: {{env['deployment'] }}-{{ properties["instancePrefix"] }}-{{n}}-disk
+        sourceImage: https://www.googleapis.com/compute/v1/projects/debian-cloud/global/images/family/debian-8
+
+    networkInterfaces:
+    - network: https://www.googleapis.com/compute/v1/projects/{{ env["project"] }}/global/networks/default
+      accessConfigs:
+      - name: External NAT
+        type: ONE_TO_ONE_NAT
+
+{% endfor %}
