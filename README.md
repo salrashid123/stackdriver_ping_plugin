@@ -1,14 +1,14 @@
 # Using collectd ping plugin to monitor VM->VM latency with Google Stackdriver
 
-Customers often want to instrument their application and monitor VM->VM and VM->external service latency as seen by simple ping probers between instances or containers.  This article covers how to use an off the shelf [Ping Plugin](https://collectd.org/documentation/manpages/collectd.conf.5.shtml#plugin_ping) for ```collectd``` together with Google Cloud's logging and monitoring faciities to acquire and process latency statistics.  Google Stackdriver uses collectd for monitoring and fluentd for logging so this article covers how to:
+Customers often want to instrument their application and monitor VM->VM and VM->external service latency as seen by simple ping probers between instances or containers.  This article covers how to use an off the shelf [Ping Plugin](https://collectd.org/documentation/manpages/collectd.conf.5.shtml#plugin_ping) for ```collectd``` together with Google Cloud's logging and monitoring facilities to acquire and process latency statistics.  Google Stackdriver uses collectd for monitoring and fluentd for logging so this article covers how to:
 
 1. ```Send ping statistics to Cloud Monitoring:```  Use Stackdriver Monitoirng to emit custom metrics representing ping plugin statistics.
-2. ```Send ping statistics to Cloud Logging`` Use Stackdriver Monitoring to _write_ the output of a *custom* ping plugin to a log file and then use Stackdriver Logging to send those to Google
+2. ```Send ping statistics to Cloud Logging``` Use Stackdriver Monitoring to _write_ the output of a *custom* ping plugin to a log file and then use Stackdriver Logging to send those to Google
 
 Ofcourse the preferable way to use Stackdriver ```collectd``` would be to emit statstics directly to Google Stackderiver as done by the supported set of [plugins](https://cloud.google.com/monitoring/agent/plugins/). At the time of writing, (7/21/18), the the ping collectd plugin is not supported....but thats ok, we can still
 add on collectd and configure it to emit [custom metrics to GCP](https://cloud.google.com/monitoring/agent/custom-metrics-agent#writing_custom_metrics_with_the_agent).
 
-Note that certain cloud providers surface aggregated, sampled statistics such as [VPC Flow Logs](https://cloud.google.com/vpc/docs/using-flow-logs) and the usecase for this is to view connectivity and latency "as seen" by the application using a ground truth ping statistics.
+Note that certain cloud providers surface aggregated, sampled statistics such as [VPC Flow Logs](https://cloud.google.com/vpc/docs/using-flow-logs) and the usecase for this is to view connectivity and latency "as seen" by the application using a ground truth ping statistics (or if you dont' want to instrument the whole network with detailed flow logs)
 
 
 ## Setup
@@ -167,7 +167,7 @@ https://storage.googleapis.com/mineral-minutia-820/ping.so
 $ gsutil stat gs://mineral-minutia-820/ping.so
 ```
 
-You ofcourse dont' have to use the precompiled ```ping.so``` and can just compile it with the instructiosn in the setup step.
+You ofcourse dont' have to use the precompiled ```ping.so``` and can just compile it with the instructions in the setup step.
 
 
 ## Build and test
@@ -275,7 +275,7 @@ Wait a couple of minutes and query the logs and stackdriver charts for ```dropra
 
 ### Cloud Client monitoring library
 
-The following snippet queries the cloud monitoring custom metic for ping using [python monitoring client](https://pypi.org/project/google-cloud-monitoring/).
+The following snippet queries the cloud monitoring custom metric for ping using [python monitoring client](https://pypi.org/project/google-cloud-monitoring/).
 
 Remember to add in the ```instance_id``` for the VM you are seeking to display the metrics for.
 
