@@ -34,7 +34,9 @@ resources:
           LoadPlugin ping
           <Plugin ping>
            {% for i in range(properties["numInstances"]) %}
-            Host "{{env['deployment'] }}-{{ properties["instancePrefix"] }}-{{i}}"
+            {% if not i == n %}
+                Host "{{env['deployment'] }}-{{ properties["instancePrefix"] }}-{{i}}"
+            {% endif %}
            {% endfor %}
             Host "www.googleapis.com"
             Host "www.cnn.com"
